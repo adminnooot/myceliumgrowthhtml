@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hyphae Mobile - Bright Realistic Growth</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body, html {
+            margin: 0; padding: 0;
+            background: #000;
+            overflow: hidden;
+            width: 100vw; height: 100dvh;
+            touch-action: none;
+        }
+
+        .canvas-container {
+            width: 100%; height: 100%;
+            display: block; position: relative;
+        }
+
+        /* Gradient overlay to protect your text */
+        .canvas-container:before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(to bottom,
+                rgba(0, 0, 0, 1) 0%,
+                rgba(0, 0, 0, 0.8) 30%,
+                rgba(0, 0, 0, 0) 100%
+            );
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        canvas { display: block; position: relative; z-index: 1; }
+    </style>
+</head>
+<body>
+    <div class="canvas-container" id="canvas-parent"></div>
+
+<script>
+let hyphae = [];
+const MAX_HYPHAE = 2000;
+let originX, originY;
+
+function setup() {
+    let canvas = createCanvas(windowWidth, windowHeight);
+    canvas.parent('canvas-parent');
+    initSimulation();
+}
+
+function initSimulation() {
+    background(15, 18, 22);
+    hyphae = [];
+
+    originX = width * 0.5;
+    originY = height;
+
+    let spawnCount = 40;
+    for(let i = 0; i < spawnCount; i++) {
+        // Corrected Math: Fan out from the bottom pointing STRICTLY upwards
+        // In p5.js, -PI is Left, 0 is Right, and -PI/2 is Up.
+        let angle = random(-PI + 0.3, -0.3);
+        hyphae.push(new Hypha(originX, originY, angle, random(3, 5)));
+    }
+}
+
+function draw() {
+    for (let i = hyphae.length - 1; i >= 0; i--) {
+        let h = hyphae[i];
+        h.update(); h.draw();
+        if (h.stopped) {
+            hyphae[i] = hyphae[hyphae.length - 1];
+            hyphae.pop();
+        }
+    }
+}
+
+class Hypha {
+    constructor(x, y, angle, w, generation = 0) {
+        this.x = x; this.y = y; this.prevX = x; this.prevY = y;
+        this.angle = angle;
+        this.w = w;
+        this.generation = generation;
+        this.speed = random(1.0, 1.8) * Math.pow(0.85, generation);
+        this.stopped = false;
+        this.noiseOffset = random(1000);
+        this.taperRate = 0.995 - (generation * 0.002);
+    }
+
+    update() {
+        this.prevX = this.x;
+        this.prevY = this.y;
+
+        // 1. DISTANCE-BASED ORGANIC WIGGLE (apical dominance)
+        let d = Math.sqrt((this.x - originX) ** 2 + (this.y - originY) ** 2);
+        let wanderScale = map(d, 0, height, 0.15, 0.03, true);
+        let wiggle = (noise(this.noiseOffset) - 0.5) * wanderScale;
+        this.angle += wiggle;
+        this.noiseOffset += 0.02;
+
+        // 2. GENTLE OUTWARD BIAS FROM ORIGIN (replaces rigid baseAngle system)
+        let outAngle = Math.atan2(this.y - originY, this.x - originX);
+        let angleDiff = outAngle - this.angle;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        this.angle += angleDiff * 0.04;
+
+        // 3. SUBTLE GRAVITROPISM
+        this.angle += 0.001;
+
+        // Move forward
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+
+        // Generation-dependent tapering
+        this.w *= this.taperRate;
+
+        // 4. NARROWER BRANCHING (generation-limited)
+        let branchProb = 0.04 * Math.pow(0.7, this.generation);
+        if (hyphae.length < MAX_HYPHAE && this.w > 0.3 && this.generation < 6 && random() < branchProb) {
+            let angleOffset = random(0.15, 0.45) * (random() > 0.5 ? 1 : -1);
+            hyphae.push(new Hypha(this.x, this.y, this.angle + angleOffset, this.w * 0.75, this.generation + 1));
+        }
+
+        // 5. STOPPING CONDITIONS
+        let isOffScreen = (this.x < -20 || this.x > width + 20 || this.y > height + 20);
+        let inHeaderZone = this.y < height * 0.25;
+
+        if (this.w < 0.1 || isOffScreen || inHeaderZone) {
+            this.stopped = true;
+        }
+    }
+
+    draw() {
+        // INCREASED BRIGHTNESS
+        let alpha = 15 + (120 * ((this.w - 0.1) / 4.9));
+
+        stroke(255, 255, 255, alpha);
+        strokeWeight(this.w);
+        line(this.prevX, this.prevY, this.x, this.y);
+
+        // Brighter core
+        if (this.w > 2) {
+            stroke(255, 255, 255, alpha + 40);
+            strokeWeight(this.w * 0.3);
+            line(this.prevX, this.prevY, this.x, this.y);
+        }
+    }
+}
+
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    initSimulation();
+}
+</script>
+</body>
+</html>

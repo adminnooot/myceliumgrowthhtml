@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            background: #050505;
+            overflow: hidden; /* Stops any rogue scrollbars */
+            width: 100vw;
+            height: 100dvh;
+            touch-action: none;
+        }
+
+        .canvas-container {
+            width: 100%;
+            height: 100%;
+            display: block; /* Removed flex and max-width so it stretches edge-to-edge */
+        }
+
+        canvas {
+            display: block;
+            /* The p5.js script handles the exact pixel dimensions */
+        }
+    </style>
+</head>
+<body>
+    <div class="canvas-container" id="canvas-parent"></div>
+
+<script>
+let hyphae = [];
+const MAX_HYPHAE = 5000;
+let originX, originY;
+let lastScreenWidth;
+
+function setup() {
+    let parent = document.getElementById('canvas-parent');
+    let canvas = createCanvas(parent.clientWidth, parent.clientHeight);
+    canvas.parent('canvas-parent');
+
+    lastScreenWidth = window.innerWidth;
+    initSimulation();
+}
+
+function initSimulation() {
+    background(15, 18, 22);
+    hyphae = [];
+
+    originX = width * 0.75;
+    originY = height / 2;
+
+    let spawnCount = 80;
+    for(let i = 0; i < spawnCount; i++) {
+        let angle = (TWO_PI / spawnCount) * i + random(-0.1, 0.1);
+        hyphae.push(new Hypha(originX, originY, angle, random(3, 5)));
+    }
+}
+
+function draw() {
+    for (let i = hyphae.length - 1; i >= 0; i--) {
+        let h = hyphae[i];
+        h.update();
+        h.draw();
+
+        if (h.stopped) {
+            hyphae[i] = hyphae[hyphae.length - 1];
+            hyphae.pop();
+        }
+    }
+}
+
+class Hypha {
+    constructor(x, y, angle, w, generation = 0) {
+        this.x = x;
+        this.y = y;
+        this.prevX = x;
+        this.prevY = y;
+
+        this.angle = angle;
+        this.w = w;
+        this.generation = generation;
+        this.speed = random(0.8, 1.5) * Math.pow(0.85, generation);
+        this.stopped = false;
+        this.noiseOffset = random(1000);
+        this.taperRate = 0.998 - (generation * 0.002);
+    }
+
+    update() {
+        this.prevX = this.x;
+        this.prevY = this.y;
+
+        let d = Math.sqrt((this.x - originX) ** 2 + (this.y - originY) ** 2);
+        let maxDist = Math.sqrt(width * width + height * height) / 2;
+        let wanderScale = map(d, 0, maxDist, 0.20, 0.04, true);
+        let n = (noise(this.noiseOffset) - 0.5) * wanderScale;
+        this.angle += n;
+        this.noiseOffset += 0.03;
+
+        let outAngle = Math.atan2(this.y - originY, this.x - originX);
+        let angleDiff = outAngle - this.angle;
+
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+        this.angle += angleDiff * 0.04;
+
+        this.angle += 0.0005;
+
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+
+        this.w *= this.taperRate;
+
+        let branchChance = 0.08 - (0.07 * ((this.w - 0.1) / 4.9));
+        let branchProb = branchChance * Math.pow(0.7, this.generation);
+
+        if (hyphae.length < MAX_HYPHAE && this.w > 0.25 && this.generation < 6 && random() < branchProb) {
+            let angleOffset = random(0.12, 0.35) * (random() > 0.5 ? 1 : -1);
+            hyphae.push(new Hypha(this.x, this.y, this.angle + angleOffset, this.w * 0.75, this.generation + 1));
+        }
+
+        let isOffScreen = (this.x < 0 || this.x > width || this.y < 0 || this.y > height);
+
+        if (this.w < 0.1 || isOffScreen) {
+            this.stopped = true;
+        }
+    }
+
+    draw() {
+        let alpha = 5 + (195 * ((this.w - 0.1) / 4.9));
+
+        stroke(255, 255, 255, alpha);
+        strokeWeight(this.w);
+        line(this.prevX, this.prevY, this.x, this.y);
+
+        if (this.w > 2) {
+            stroke(255, 255, 255, alpha + 50);
+            strokeWeight(this.w * 0.3);
+            line(this.prevX, this.prevY, this.x, this.y);
+        }
+    }
+}
+
+function windowResized() {
+    if (Math.abs(window.innerWidth - lastScreenWidth) > 20) {
+        let parent = document.getElementById('canvas-parent');
+        resizeCanvas(parent.clientWidth, parent.clientHeight);
+        lastScreenWidth = window.innerWidth;
+        initSimulation();
+    }
+}
+</script>
+</body>
+</html>

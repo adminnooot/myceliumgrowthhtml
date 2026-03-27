@@ -3,9 +3,11 @@
 A generative art piece simulating the branching growth patterns of fungal hyphae — the thread-like filaments that form the body of a fungus. Built with [p5.js](https://p5js.org/).
 
 
-## Live Demo
+## 🔬 Live Preview
 
-> Open `desktop.html` in any modern browser — no build step, no dependencies to install.
+[![Launch Live Preview](https://img.shields.io/badge/Launch-Live_Preview-brightgreen?style=for-the-badge)](https://adminnooot.github.io/myceliumgrowthhtml/)
+
+> Interactive simulation with real-time controls — adjust origin point, branching, speed, and more.
 
 ---
 
@@ -76,12 +78,26 @@ The canvas fills the full browser window. On resize, if the width changes by mor
 ## Usage
 
 ```bash
-git clone https://github.com/your-username/your-repo.git
-cd your-repo
-open desktop.html   # or just drag it into a browser
+git clone https://github.com/adminnooot/myceliumgrowthhtml.git
+cd myceliumgrowthhtml
+open index.html   # or drag it into a browser
 ```
 
-Or host it as a GitHub Page — the file is self-contained.
+Or visit the [live GitHub Pages site](https://adminnooot.github.io/myceliumgrowthhtml/) for the interactive version with GUI controls.
+
+**GUI Controls** (toggle with the ⚙ button in the top-left corner):
+
+| Control | What it does |
+|---|---|
+| Origin X / Origin Y | Reposition where growth radiates from |
+| Max Hyphae | Cap on simultaneous filaments |
+| Spawn Count | Initial filaments spawned at start |
+| Max Generations | Branch depth limit |
+| Taper Rate | How quickly filaments narrow |
+| Speed | Movement speed multiplier |
+| Wander Scale | Perlin noise influence strength |
+| Branch Prob | Chance of each filament splitting |
+| ↺ Restart | Re-initialize with current slider values |
 
 ---
 

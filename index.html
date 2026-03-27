@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hyphae Growth Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            background: #050505;
+            overflow: hidden;
+            width: 100vw;
+            height: 100dvh;
+            touch-action: none;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        .canvas-container {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* ── Toggle button ── */
+        #toggle-btn {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 200;
+            background: rgba(20, 24, 30, 0.85);
+            color: #c8f0c8;
+            border: 1px solid rgba(120, 220, 120, 0.35);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            backdrop-filter: blur(6px);
+            transition: background 0.2s, border-color 0.2s;
+            user-select: none;
+        }
+        #toggle-btn:hover {
+            background: rgba(30, 40, 36, 0.95);
+            border-color: rgba(120, 220, 120, 0.7);
+        }
+
+        /* ── Control panel ── */
+        #control-panel {
+            position: fixed;
+            top: 46px;
+            left: 12px;
+            z-index: 100;
+            width: 240px;
+            max-height: calc(100vh - 60px);
+            overflow-y: auto;
+            background: rgba(12, 16, 20, 0.88);
+            border: 1px solid rgba(120, 220, 120, 0.25);
+            border-radius: 10px;
+            padding: 14px 16px 16px;
+            backdrop-filter: blur(8px);
+            color: #ddeedd;
+            transition: opacity 0.2s, transform 0.2s;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(120, 220, 120, 0.3) transparent;
+        }
+        #control-panel.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-8px);
+        }
+        #control-panel::-webkit-scrollbar { width: 4px; }
+        #control-panel::-webkit-scrollbar-thumb {
+            background: rgba(120, 220, 120, 0.3);
+            border-radius: 4px;
+        }
+
+        #control-panel h3 {
+            margin: 0 0 12px;
+            font-size: 13px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(150, 240, 150, 0.85);
+            font-weight: 600;
+        }
+
+        .ctrl-row {
+            margin-bottom: 11px;
+        }
+        .ctrl-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: #aaccaa;
+        }
+        .ctrl-label span.val {
+            font-variant-numeric: tabular-nums;
+            color: #c8f0c8;
+            min-width: 42px;
+            text-align: right;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.1);
+            outline: none;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #6ddc6d;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(109, 220, 109, 0.5);
+            transition: transform 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #6ddc6d;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(109, 220, 109, 0.5);
+        }
+
+        #restart-btn {
+            margin-top: 14px;
+            width: 100%;
+            padding: 8px 0;
+            background: rgba(109, 220, 109, 0.15);
+            color: #a0f0a0;
+            border: 1px solid rgba(109, 220, 109, 0.4);
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        #restart-btn:hover {
+            background: rgba(109, 220, 109, 0.28);
+            border-color: rgba(109, 220, 109, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="canvas-container" id="canvas-parent"></div>
+
+    <button id="toggle-btn" title="Toggle controls">⚙ Controls</button>
+
+    <div id="control-panel">
+        <h3>🍄 Simulation Controls</h3>
+
+        <div class="ctrl-row">
+            <div class="ctrl-label"><span>Origin X</span><span class="val" id="val-ox">75%</span></div>
+            <input type="range" id="slider-ox" min="0" max="100" step="1" value="75">
+        </div>
+        <div class="ctrl-row">
+            <div class="ctrl-label"><span>Origin Y</span><span class="val" id="val-oy">50%</span></div>
+            <input type="range" id="slider-oy" min="0" max="100" step="1" value="50">
+        </div>
+        <div class="ctrl-row">
+            <div class="ctrl-label"><span>Max Hyphae</span><span class="val" id="val-mh">5000</span></div>
+            <input type="range" id="slider-mh" min="100" max="10000" step="100" value="5000">
+        </div>
+        <div class="ctrl-row">
+            <div class="ctrl-label"><span>Spawn Count</span><span class="val" id="val-sc">80</span></div>
+            <input type="range" id="slider-sc" min="10" max="300" step="5" value="80">
+        </div>
+        <div class="ctrl-row">
+            <div class="ctrl-label"><span>Max Generations</span><span class="val" id="val-mg">6</span></div>
+            <input type="range" id="slider-mg" min="1" max="12" step="1" value="6">
+        </div>
+        <div class="ctrl-row">
+            <div class="ctrl-label"><span>Taper Rate</span><span class="val" id="val-tr">0.998</span></div>
+            <input type="range" id="slider-tr" min="0.980" max="1.000" step="0.001" value="0.998">
+        </div>
+        <div class="ctrl-row">
+            <div class="ctrl-label"><span>Speed</span><span class="val" id="val-sp">1.00</span></div>
+            <input type="range" id="slider-sp" min="0.1" max="3.0" step="0.1" value="1.0">
+        </div>
+        <div class="ctrl-row">
+            <div class="ctrl-label"><span>Wander Scale</span><span class="val" id="val-ws">0.20</span></div>
+            <input type="range" id="slider-ws" min="0.01" max="0.50" step="0.01" value="0.20">
+        </div>
+        <div class="ctrl-row">
+            <div class="ctrl-label"><span>Branch Prob</span><span class="val" id="val-bp">0.08</span></div>
+            <input type="range" id="slider-bp" min="0.01" max="0.30" step="0.01" value="0.08">
+        </div>
+
+        <button id="restart-btn">↺ Restart</button>
+    </div>
+
+<script>
+// ── Simulation state ──────────────────────────────────────────────────────────
+let hyphae = [];
+let originX, originY;
+let lastScreenWidth;
+
+// ── Parameters (read from sliders) ───────────────────────────────────────────
+let params = {
+    originXPct:   75,
+    originYPct:   50,
+    maxHyphae:    5000,
+    spawnCount:   80,
+    maxGen:       6,
+    taperRate:    0.998,
+    speedMult:    1.0,
+    wanderScale:  0.20,
+    branchProb:   0.08,
+};
+
+// ── Slider wiring ─────────────────────────────────────────────────────────────
+const sliders = [
+    { id: 'slider-ox', valId: 'val-ox', key: 'originXPct',  fmt: v => v + '%' },
+    { id: 'slider-oy', valId: 'val-oy', key: 'originYPct',  fmt: v => v + '%' },
+    { id: 'slider-mh', valId: 'val-mh', key: 'maxHyphae',   fmt: v => v },
+    { id: 'slider-sc', valId: 'val-sc', key: 'spawnCount',  fmt: v => v },
+    { id: 'slider-mg', valId: 'val-mg', key: 'maxGen',      fmt: v => v },
+    { id: 'slider-tr', valId: 'val-tr', key: 'taperRate',   fmt: v => parseFloat(v).toFixed(3) },
+    { id: 'slider-sp', valId: 'val-sp', key: 'speedMult',   fmt: v => parseFloat(v).toFixed(2) },
+    { id: 'slider-ws', valId: 'val-ws', key: 'wanderScale', fmt: v => parseFloat(v).toFixed(2) },
+    { id: 'slider-bp', valId: 'val-bp', key: 'branchProb',  fmt: v => parseFloat(v).toFixed(2) },
+];
+
+sliders.forEach(({ id, valId, key, fmt }) => {
+    const slider = document.getElementById(id);
+    const label  = document.getElementById(valId);
+    slider.addEventListener('input', () => {
+        params[key] = parseFloat(slider.value);
+        label.textContent = fmt(slider.value);
+    });
+});
+
+// ── Toggle panel ──────────────────────────────────────────────────────────────
+const panel     = document.getElementById('control-panel');
+const toggleBtn = document.getElementById('toggle-btn');
+toggleBtn.addEventListener('click', () => {
+    panel.classList.toggle('hidden');
+    toggleBtn.textContent = panel.classList.contains('hidden') ? '⚙ Controls' : '✕ Hide';
+});
+
+// ── Restart button ────────────────────────────────────────────────────────────
+document.getElementById('restart-btn').addEventListener('click', () => {
+    if (typeof initSimulation === 'function') initSimulation();
+});
+
+// ── p5.js sketch ─────────────────────────────────────────────────────────────
+function setup() {
+    let parent = document.getElementById('canvas-parent');
+    let canvas = createCanvas(parent.clientWidth, parent.clientHeight);
+    canvas.parent('canvas-parent');
+    lastScreenWidth = window.innerWidth;
+    initSimulation();
+}
+
+function initSimulation() {
+    background(15, 18, 22);
+    hyphae = [];
+
+    originX = width  * (params.originXPct / 100);
+    originY = height * (params.originYPct / 100);
+
+    let count = params.spawnCount;
+    for (let i = 0; i < count; i++) {
+        let angle = (TWO_PI / count) * i + random(-0.1, 0.1);
+        hyphae.push(new Hypha(originX, originY, angle, random(3, 5)));
+    }
+}
+
+function draw() {
+    for (let i = hyphae.length - 1; i >= 0; i--) {
+        let h = hyphae[i];
+        h.update();
+        h.draw();
+
+        if (h.stopped) {
+            hyphae[i] = hyphae[hyphae.length - 1];
+            hyphae.pop();
+        }
+    }
+}
+
+class Hypha {
+    constructor(x, y, angle, w, generation = 0) {
+        this.x = x;
+        this.y = y;
+        this.prevX = x;
+        this.prevY = y;
+
+        this.angle = angle;
+        this.w = w;
+        this.generation = generation;
+        this.speed = random(0.8, 1.5) * Math.pow(0.85, generation) * params.speedMult;
+        this.stopped = false;
+        this.noiseOffset = random(1000);
+        this.taperRate = params.taperRate - (generation * 0.002);
+    }
+
+    update() {
+        this.prevX = this.x;
+        this.prevY = this.y;
+
+        let d = Math.sqrt((this.x - originX) ** 2 + (this.y - originY) ** 2);
+        let maxDist = Math.sqrt(width * width + height * height) / 2;
+        let wanderNear = params.wanderScale;
+        let wanderFar  = params.wanderScale * 0.2;
+        let wanderAmt  = map(d, 0, maxDist, wanderNear, wanderFar, true);
+        let n = (noise(this.noiseOffset) - 0.5) * wanderAmt;
+        this.angle += n;
+        this.noiseOffset += 0.03;
+
+        let outAngle = Math.atan2(this.y - originY, this.x - originX);
+        let angleDiff = outAngle - this.angle;
+
+        while (angleDiff > Math.PI)  angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+        this.angle += angleDiff * 0.04;
+        this.angle += 0.0005;
+
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+
+        this.w *= this.taperRate;
+
+        let branchChance = params.branchProb - (params.branchProb * 0.875 * ((this.w - 0.1) / 4.9));
+        let branchProbFinal = branchChance * Math.pow(0.7, this.generation);
+
+        if (hyphae.length < params.maxHyphae &&
+            this.w > 0.25 &&
+            this.generation < params.maxGen &&
+            random() < branchProbFinal) {
+            let angleOffset = random(0.12, 0.35) * (random() > 0.5 ? 1 : -1);
+            hyphae.push(new Hypha(
+                this.x, this.y,
+                this.angle + angleOffset,
+                this.w * 0.75,
+                this.generation + 1
+            ));
+        }
+
+        let isOffScreen = (this.x < 0 || this.x > width || this.y < 0 || this.y > height);
+        if (this.w < 0.1 || isOffScreen) {
+            this.stopped = true;
+        }
+    }
+
+    draw() {
+        let alpha = 5 + (195 * ((this.w - 0.1) / 4.9));
+
+        stroke(255, 255, 255, alpha);
+        strokeWeight(this.w);
+        line(this.prevX, this.prevY, this.x, this.y);
+
+        if (this.w > 2) {
+            stroke(255, 255, 255, alpha + 50);
+            strokeWeight(this.w * 0.3);
+            line(this.prevX, this.prevY, this.x, this.y);
+        }
+    }
+}
+
+function windowResized() {
+    if (Math.abs(window.innerWidth - lastScreenWidth) > 20) {
+        let parent = document.getElementById('canvas-parent');
+        resizeCanvas(parent.clientWidth, parent.clientHeight);
+        lastScreenWidth = window.innerWidth;
+        initSimulation();
+    }
+}
+</script>
+</body>
+</html>
